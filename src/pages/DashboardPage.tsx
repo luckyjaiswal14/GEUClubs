@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { User } from 'firebase/auth';
-import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs } from 'firebase/firestore';
+import { collection, query, where, onSnapshot, addDoc, updateDoc, deleteDoc, doc, serverTimestamp, getDocs, getDoc } from 'firebase/firestore';
 import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import { db, storage } from '../firebase';
 import { Event, Club } from '../types';
-import { Plus, Edit2, Trash2, X, Image as ImageIcon, Check, AlertCircle } from 'lucide-react';
+import { Plus, Edit2, Trash2, X, Image as ImageIcon, Check, AlertCircle, ShieldOff } from 'lucide-react';
 
 interface DashboardPageProps {
   user: User;
@@ -14,10 +14,11 @@ export default function DashboardPage({ user }: DashboardPageProps) {
   const [events, setEvents] = useState<Event[]>([]);
   const [clubs, setClubs] = useState<Club[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isAuthorised, setIsAuthorised] = useState<boolean | null>(null); // null = still checking
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: '' });
+  const [message, setMessage] = useState({ type: '', text: ''  });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -34,29 +35,54 @@ export default function DashboardPage({ user }: DashboardPageProps) {
   const [posterFile, setPosterFile] = useState<File | null>(null);
 
   useEffect(() => {
-    // Fetch user's clubs
-    const clubsQuery = query(collection(db, 'clubs'));
-    const unsubscribeClubs = onSnapshot(clubsQuery, (snapshot) => {
-      const clubsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Club));
-      setClubs(clubsData);
-      
-      // If user has no club, we might want to create one for them or handle it
-      // For prototype, we'll just let them pick from existing or add a new one
-    });
+    // Step 1 — Check if this user is an authorised organiser
+    // Uses their email as the document ID in allowedOrganizers collection
+    const checkAuth = async () => {
+      if (!user.email) {
+        setIsAuthorised(false);
+        setLoading(false);
+        return;
+      }
+      const docRef = doc(db, 'allowedOrganizers', user.email.toLowerCase().trim());
+      const docSnap = await getDoc(docRef);
+      const authorised = docSnap.exists();
+      setIsAuthorised(authorised);
 
-    // Fetch user's events
-    const eventsQuery = query(collection(db, 'events'), where('createdBy', '==', user.uid));
-    const unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
-      const eventsData = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
-      setEvents(eventsData);
-      setLoading(false);
-    });
+      if (!authorised) {
+        setLoading(false);
+        return;
+      }
 
-    return () => {
-      unsubscribeClubs();
-      unsubscribeEvents();
+      // Step 2 — Read their clubId from the allowedOrganizers doc
+      // This is the single source of truth for which club they belong to
+      const organiserData = docSnap.data();
+      const assignedClubId: string = organiserData?.clubId || '';
+
+      if (assignedClubId) {
+        // Fetch only their specific club by ID
+        const clubDocRef = doc(db, 'clubs', assignedClubId);
+        const { getDoc: getClubDoc } = await import('firebase/firestore');
+        const clubSnap = await getClubDoc(clubDocRef);
+        if (clubSnap.exists()) {
+          setClubs([{ id: clubSnap.id, ...clubSnap.data() } as Club]);
+        }
+      }
+
+      // Step 3 — Only fetch events created by this user
+      const eventsQuery = query(collection(db, 'events'), where('createdBy', '==', user.uid));
+      const unsubscribeEvents = onSnapshot(eventsQuery, (snapshot) => {
+        const eventsData = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Event));
+        setEvents(eventsData);
+        setLoading(false);
+      });
+
+      return () => {
+        unsubscribeEvents();
+      };
     };
-  }, [user.uid]);
+
+    checkAuth();
+  }, [user.uid, user.email]);
 
   const handleOpenModal = (event?: Event) => {
     if (event) {
@@ -241,6 +267,38 @@ export default function DashboardPage({ user }: DashboardPageProps) {
     }
   };
 
+  // Still checking authorisation
+  if (loading || isAuthorised === null) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-emerald-600"></div>
+      </div>
+    );
+  }
+
+  // Logged in but not an authorised organiser
+  if (!isAuthorised) {
+    return (
+      <div className="max-w-md mx-auto py-16 text-center">
+        <div className="bg-white border border-stone-200 rounded-3xl p-10 shadow-sm">
+          <div className="bg-amber-50 h-16 w-16 rounded-full flex items-center justify-center mx-auto mb-5">
+            <ShieldOff className="h-8 w-8 text-amber-500" />
+          </div>
+          <h2 className="text-xl font-bold text-stone-900 mb-2">Not Authorised</h2>
+          <p className="text-stone-500 text-sm mb-1">
+            You are logged in as <span className="font-semibold text-stone-700">{user.email}</span>
+          </p>
+          <p className="text-stone-500 text-sm mb-6">
+            This account is not registered as a club organiser. Contact the student council to get access.
+          </p>
+          <div className="bg-stone-50 rounded-xl p-4 text-xs text-stone-400 border border-stone-100">
+            Already have access? Make sure you are logged in with the correct email address registered with your club.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -273,11 +331,7 @@ export default function DashboardPage({ user }: DashboardPageProps) {
           <h2 className="text-xl font-bold text-stone-900">Your Managed Events</h2>
         </div>
         
-        {loading ? (
-          <div className="p-12 text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-emerald-600 mx-auto"></div>
-          </div>
-        ) : events.length > 0 ? (
+        {events.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
@@ -340,12 +394,18 @@ export default function DashboardPage({ user }: DashboardPageProps) {
         ) : (
           <div className="p-12 text-center">
             <p className="text-stone-500 mb-4">You haven't posted any events yet.</p>
-            <button 
-              onClick={() => handleOpenModal()}
-              className="text-emerald-600 font-bold hover:underline"
-            >
-              Post your first event
-            </button>
+            {clubs.length === 0 ? (
+              <p className="text-amber-600 text-sm font-medium">
+                You need a club registered under your account before posting events. Contact the admin.
+              </p>
+            ) : (
+              <button
+                onClick={() => handleOpenModal()}
+                className="text-emerald-600 font-bold hover:underline"
+              >
+                Post your first event
+              </button>
+            )}
           </div>
         )}
       </div>
@@ -384,21 +444,26 @@ export default function DashboardPage({ user }: DashboardPageProps) {
 
                 <div>
                   <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Club Name</label>
-                  <select 
-                    required
-                    className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
-                    value={formData.clubId}
-                    onChange={(e) => {
-                      const club = clubs.find(c => c.id === e.target.value);
-                      setFormData({...formData, clubId: e.target.value, club: club?.name || ''});
-                    }}
-                  >
-                    <option value="">Select Club</option>
-                    {clubs.map(club => (
-                      <option key={club.id} value={club.id}>{club.name}</option>
-                    ))}
-                    <option value="other">Other (Manual Entry)</option>
-                  </select>
+                  {clubs.length === 0 ? (
+                    <div className="w-full bg-amber-50 border border-amber-200 rounded-xl py-3 px-4 text-sm text-amber-700">
+                      No clubs registered under your account. Contact the admin to get your club added.
+                    </div>
+                  ) : (
+                    <select
+                      required
+                      className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
+                      value={formData.clubId}
+                      onChange={(e) => {
+                        const club = clubs.find(c => c.id === e.target.value);
+                        setFormData({...formData, clubId: e.target.value, club: club?.name || ''});
+                      }}
+                    >
+                      <option value="">Select Club</option>
+                      {clubs.map(club => (
+                        <option key={club.id} value={club.id}>{club.name}</option>
+                      ))}
+                    </select>
+                  )}
                 </div>
 
                 {formData.clubId === 'other' && (
