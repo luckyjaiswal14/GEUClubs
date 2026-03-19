@@ -5,6 +5,7 @@ import { db } from '../firebase';
 import { uploadImage } from '../utils/uploadImage';
 import { Event, Club } from '../types';
 import { Plus, Edit2, Trash2, X, Image as ImageIcon, Check, AlertCircle, ShieldOff } from 'lucide-react';
+import ClubManagement from '../components/ClubManagement';
 
 interface DashboardPageProps {
   user: User;
@@ -18,7 +19,7 @@ export default function DashboardPage({ user }: DashboardPageProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingEvent, setEditingEvent] = useState<Event | null>(null);
   const [formLoading, setFormLoading] = useState(false);
-  const [message, setMessage] = useState({ type: '', text: ''  });
+  const [message, setMessage] = useState({ type: '', text: '' });
 
   // Form State
   const [formData, setFormData] = useState({
@@ -306,14 +307,14 @@ export default function DashboardPage({ user }: DashboardPageProps) {
         </div>
         <div className="flex items-center space-x-3">
           {user.email === 'akhileshpadiyar74@gmail.com' && (
-            <button 
+            <button
               onClick={handleSeedData}
               className="text-stone-500 hover:text-emerald-600 text-sm font-medium px-4 py-2 rounded-xl border border-stone-200 hover:border-emerald-200 transition-all"
             >
               Seed Sample Data
             </button>
           )}
-          <button 
+          <button
             onClick={() => handleOpenModal()}
             className="bg-emerald-600 text-white px-6 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 flex items-center justify-center space-x-2"
           >
@@ -323,12 +324,18 @@ export default function DashboardPage({ user }: DashboardPageProps) {
         </div>
       </div>
 
+      {clubs.length > 0 && (
+        <div className="mb-12">
+          <ClubManagement user={user} clubId={clubs[0].id} />
+        </div>
+      )}
+
       {/* Events List */}
       <div className="bg-white rounded-3xl border border-stone-200 overflow-hidden shadow-sm">
         <div className="p-6 border-b border-stone-100">
           <h2 className="text-xl font-bold text-stone-900">Your Managed Events</h2>
         </div>
-        
+
         {events.length > 0 ? (
           <div className="overflow-x-auto">
             <table className="w-full text-left">
@@ -346,9 +353,9 @@ export default function DashboardPage({ user }: DashboardPageProps) {
                     <td className="px-6 py-4">
                       <div className="flex items-center space-x-4">
                         <div className="h-12 w-12 rounded-lg bg-stone-100 overflow-hidden flex-shrink-0 border border-stone-200">
-                          <img 
-                            src={event.posterURL || `https://picsum.photos/seed/${event.id}/100/100`} 
-                            alt="" 
+                          <img
+                            src={event.posterURL || `https://picsum.photos/seed/${event.id}/100/100`}
+                            alt=""
                             className="h-full w-full object-cover"
                             referrerPolicy="no-referrer"
                           />
@@ -368,14 +375,14 @@ export default function DashboardPage({ user }: DashboardPageProps) {
                     </td>
                     <td className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end space-x-2">
-                        <button 
+                        <button
                           onClick={() => handleOpenModal(event)}
                           className="p-2 text-stone-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg transition-all"
                           title="Edit"
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        <button 
+                        <button
                           onClick={() => handleDelete(event.id)}
                           className="p-2 text-stone-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
                           title="Delete"
@@ -430,13 +437,13 @@ export default function DashboardPage({ user }: DashboardPageProps) {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Event Title</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="e.g. Annual Tech Hackathon 2024"
                     value={formData.title}
-                    onChange={(e) => setFormData({...formData, title: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, title: e.target.value })}
                   />
                 </div>
 
@@ -453,7 +460,7 @@ export default function DashboardPage({ user }: DashboardPageProps) {
                       value={formData.clubId}
                       onChange={(e) => {
                         const club = clubs.find(c => c.id === e.target.value);
-                        setFormData({...formData, clubId: e.target.value, club: club?.name || ''});
+                        setFormData({ ...formData, clubId: e.target.value, club: club?.name || '' });
                       }}
                     >
                       <option value="">Select Club</option>
@@ -467,71 +474,71 @@ export default function DashboardPage({ user }: DashboardPageProps) {
                 {formData.clubId === 'other' && (
                   <div>
                     <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Manual Club Name</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       required
                       className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                       placeholder="Enter club name"
                       value={formData.club}
-                      onChange={(e) => setFormData({...formData, club: e.target.value})}
+                      onChange={(e) => setFormData({ ...formData, club: e.target.value })}
                     />
                   </div>
                 )}
 
                 <div>
                   <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Date</label>
-                  <input 
-                    type="date" 
+                  <input
+                    type="date"
                     required
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     value={formData.date}
-                    onChange={(e) => setFormData({...formData, date: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, date: e.target.value })}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Time</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="e.g. 10:00 AM - 4:00 PM"
                     value={formData.time}
-                    onChange={(e) => setFormData({...formData, time: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, time: e.target.value })}
                   />
                 </div>
 
                 <div>
                   <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Venue</label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     required
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="e.g. Seminar Hall 1, CS Block"
                     value={formData.venue}
-                    onChange={(e) => setFormData({...formData, venue: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, venue: e.target.value })}
                   />
                 </div>
 
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Description</label>
-                  <textarea 
+                  <textarea
                     rows={4}
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="Tell students what the event is about..."
                     value={formData.description}
-                    onChange={(e) => setFormData({...formData, description: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, description: e.target.value })}
                   ></textarea>
                 </div>
 
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Registration Link (Google Form, etc.)</label>
-                  <input 
-                    type="url" 
+                  <input
+                    type="url"
                     className="w-full bg-stone-50 border border-stone-200 rounded-xl py-3 px-4 focus:outline-none focus:ring-2 focus:ring-emerald-500 transition-all"
                     placeholder="https://forms.gle/..."
                     value={formData.registrationLink}
-                    onChange={(e) => setFormData({...formData, registrationLink: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, registrationLink: e.target.value })}
                   />
                 </div>
 
@@ -539,14 +546,14 @@ export default function DashboardPage({ user }: DashboardPageProps) {
                   <label className="block text-sm font-bold text-stone-700 mb-2 text-stone-900">Event Poster</label>
                   <div className="flex items-center space-x-4">
                     <div className="flex-grow">
-                      <input 
-                        type="file" 
+                      <input
+                        type="file"
                         accept="image/*"
                         className="hidden"
                         id="poster-upload"
                         onChange={(e) => setPosterFile(e.target.files?.[0] || null)}
                       />
-                      <label 
+                      <label
                         htmlFor="poster-upload"
                         className="flex items-center justify-center w-full border-2 border-dashed border-stone-200 rounded-xl py-6 px-4 cursor-pointer hover:border-emerald-500 hover:bg-emerald-50 transition-all group"
                       >
@@ -558,9 +565,9 @@ export default function DashboardPage({ user }: DashboardPageProps) {
                     </div>
                     {(posterFile || formData.posterURL) && (
                       <div className="h-20 w-20 rounded-xl border border-stone-200 overflow-hidden flex-shrink-0">
-                        <img 
-                          src={posterFile ? URL.createObjectURL(posterFile) : formData.posterURL} 
-                          alt="Preview" 
+                        <img
+                          src={posterFile ? URL.createObjectURL(posterFile) : formData.posterURL}
+                          alt="Preview"
                           className="h-full w-full object-cover"
                           referrerPolicy="no-referrer"
                         />
@@ -571,14 +578,14 @@ export default function DashboardPage({ user }: DashboardPageProps) {
               </div>
 
               <div className="pt-6 border-t border-stone-100 flex items-center justify-end space-x-4">
-                <button 
+                <button
                   type="button"
                   onClick={handleCloseModal}
                   className="px-6 py-3 text-stone-500 font-bold hover:text-stone-900 transition-colors"
                 >
                   Cancel
                 </button>
-                <button 
+                <button
                   type="submit"
                   disabled={formLoading}
                   className="bg-emerald-600 text-white px-8 py-3 rounded-xl font-bold hover:bg-emerald-700 transition-all shadow-md shadow-emerald-100 disabled:opacity-50"

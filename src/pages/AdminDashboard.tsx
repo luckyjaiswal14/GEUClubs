@@ -9,14 +9,15 @@ import { uploadImage } from '../utils/uploadImage';
 import { Event, Club, AllowedOrganiser } from '../types';
 import {
   Plus, Trash2, X, Image as ImageIcon, Check,
-  AlertCircle, Users, Calendar, Shield, Edit2
+  AlertCircle, Users, Calendar, Shield, Edit2, BarChart
 } from 'lucide-react';
+import ClubManagement from '../components/ClubManagement';
 
 interface AdminDashboardProps {
   user: User;
 }
 
-type ActiveTab = 'events' | 'clubs' | 'organisers';
+type ActiveTab = 'events' | 'clubs' | 'organisers' | 'management';
 
 export default function AdminDashboard({ user }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<ActiveTab>('events');
@@ -218,8 +219,9 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
   // ── Render ─────────────────────────────────────────────────────
   const tabs: { id: ActiveTab; label: string; icon: React.ReactNode; count: number }[] = [
     { id: 'events', label: 'Events', icon: <Calendar className="h-4 w-4" />, count: events.length },
-    { id: 'clubs', label: 'Clubs', icon: <Users className="h-4 w-4" />, count: clubs.length },
-    { id: 'organisers', label: 'Organisers', icon: <Shield className="h-4 w-4" />, count: organisers.length },
+  { id: 'clubs', label: 'Clubs', icon: <Users className="h-4 w-4" />, count: clubs.length },
+  { id: 'organisers', label: 'Organisers', icon: <Shield className="h-4 w-4" />, count: organisers.length },
+  { id: 'management', label: 'Management API', icon: <BarChart className="h-4 w-4" />, count: clubs.length },
   ];
 
   if (loading) {
@@ -390,6 +392,33 @@ export default function AdminDashboard({ user }: AdminDashboardProps) {
                   </button>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── MANAGEMENT SYSTEM TAB ── */}
+      {activeTab === 'management' && (
+        <div>
+          {clubs.length === 0 ? (
+            <div className="p-16 text-center text-stone-400">No clubs yet. Go to Clubs tab to create first.</div>
+          ) : (
+            <div>
+              <p className="text-sm text-stone-500 mb-4">View and manage members, attendance, and perform analytics using the new Postgres Management system.</p>
+              {/* Show the first club's management system by default for admin demo */}
+              <select className="px-4 py-3 bg-white border border-stone-200 rounded-xl text-sm font-bold shadow-sm" id="club-select" onChange={(e) => {
+                const el = document.getElementById('management-mount');
+                if (el) {
+                  import('react-dom/client').then(({ createRoot }) => {
+                    createRoot(el).render(<ClubManagement user={user} clubId={e.target.value} />);
+                  });
+                }
+              }}>
+                {clubs.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+              </select>
+              <div id="management-mount">
+                <ClubManagement user={user} clubId={clubs[0].id} />
+              </div>
             </div>
           )}
         </div>

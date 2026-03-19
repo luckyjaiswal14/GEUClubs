@@ -1,0 +1,100 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+model User {
+  id            String         @id // Firebase UID
+  email         String         @unique
+  name          String
+  role          String         @default("member") // admin | member
+  memberships   Membership[]
+  attendances   Attendance[]
+  volunteerings Volunteering[]
+  performance   Performance?
+  certifications Certification[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+}
+
+model Club {
+  id          String       @id @default(uuid())
+  name        String
+  description String?
+  memberships Membership[]
+  events      Event[]
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+}
+
+model Membership {
+  id        String   @id @default(uuid())
+  userId    String
+  clubId    String
+  role      String   @default("member") // member | volunteer | core | head
+  status    String   @default("active") // active | inactive
+  joinedAt  DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, clubId])
+}
+
+model Event {
+  id           String         @id @default(uuid())
+  clubId       String
+  name         String
+  date         DateTime
+  description  String?
+  club         Club           @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  attendances  Attendance[]
+  volunteerings Volunteering[]
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+}
+
+model Attendance {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  status    String   @default("present") // present | absent
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, eventId])
+}
+
+model Volunteering {
+  id        String   @id @default(uuid())
+  userId    String
+  eventId   String
+  role      String
+  hours     Float    @default(0)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  event     Event    @relation(fields: [eventId], references: [id], onDelete: Cascade)
+}
+
+model Performance {
+  id                 String   @id @default(uuid())
+  userId             String   @unique
+  score              Float    @default(0)
+  attendanceRate     Float    @default(0)
+  eventsParticipated Int      @default(0)
+  volunteerHours     Float    @default(0)
+  user               User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  updatedAt          DateTime @updatedAt
+}
+
+model Certification {
+  id        String   @id @default(uuid())
+  userId    String
+  clubId    String
+  eligible  Boolean  @default(false)
+  issuedAt  DateTime? // null if not yet issued
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, clubId])
+}
